@@ -29,13 +29,13 @@ module slave (
             if (apb_if.PSEL && apb_if.PENABLE && apb_if.PWRITE) begin
 		apb_if.PREADY <= 1'b1;
                 register_file[apb_if.PADDR] <= apb_if.PWDATA;
-		$display("SLAVE WRITE REQUEST IN PROCESS; DATA: %32d", apb_if.PWDATA);
+		$display("[SLAVE] WRITE ; DATA: %32d", apb_if.PWDATA);
             end
             
             else if (apb_if.PSEL && apb_if.PENABLE && !apb_if.PWRITE) begin
 		apb_if.PREADY <= 1'b1;
                 apb_if.PRDATA <= register_file[apb_if.PADDR];
-		$display("SLAVE READ REQUEST IN PROCESS; DATA: %32d", register_file[apb_if.PADDR]);
+		$display("[SLAVE] READ ; DATA: %32d", register_file[apb_if.PADDR]);
             end
 	if (!apb_if.PSEL) apb_if.PREADY <= 1'b0;
  

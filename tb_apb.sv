@@ -7,7 +7,7 @@ module tb_apb;
 // Clock и reset
 logic clk;
 logic resetn;
-
+logic signed [31:0] read_data;
 // Объявляем интерфейсы
 apb_interface apb_if();
 
@@ -38,20 +38,19 @@ assign apb_if.PRESETn = resetn;
 
     // Создаем агент и запускаем его трансакционный FSM
     agent_if = new(apb_if.master_mp);
-      
-  
 
     // ===== Тест 1: запись и чтение EXT через APB =====
     $display("\n==== APB write/read test ====");
 	// Сначала запись
-	agent_if.write(32'h00, 32'd6);// Настраиваем адрес назначения
+	agent_if.write(8'h00, 1);// Настраиваем адрес назначения
 	#5;
-	agent_if.write(32'h04, 32'd20102025);//, Настраиваем команду записи
+	agent_if.write(8'h01, -2);//, Настраиваем команду записи
 	#5;
-	agent_if.write(32'h08, 32'd75799072);//, Указываем число на запись
-	#5;
-	agent_if.write(32'h0C, 32'd65828469);//, Отправляем начало транзакции
-	#100;		
+	agent_if.write(8'h04, 0);//, Указываем число на запись
+	#20;
+	agent_if.read(8'h02, read_data);//, Отправляем начало транзакции
+	#20;		
+	$display("Result == %d", read_data);
 
     $finish;
   end

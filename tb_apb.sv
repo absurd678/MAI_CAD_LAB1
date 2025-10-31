@@ -42,15 +42,18 @@ assign apb_if.PRESETn = resetn;
     // ===== Тест 1: запись и чтение EXT через APB =====
     $display("\n==== APB write/read test ====");
 	// Сначала запись
-	agent_if.write(8'h00, 1);// Настраиваем адрес назначения
+	agent_if.write(8'h00, -2147483600);// операнд 1
 	#5;
-	agent_if.write(8'h01, -2);//, Настраиваем команду записи
+	agent_if.write(8'h01, 2147483600);//, операнд 2
 	#5;
-	agent_if.write(8'h04, 0);//, Указываем число на запись
+	agent_if.write(8'h04, 1);//, операция
 	#20;
-	agent_if.read(8'h02, read_data);//, Отправляем начало транзакции
-	#20;		
-	$display("Result == %d", read_data);
+	agent_if.read(8'h02, read_data);// результат
+	#20;
+	$display("Result == %d", read_data);		
+	agent_if.read(8'h03, read_data); // переполнение?
+	#20;
+	$display("Is overflow == %d", read_data);	
 
     $finish;
   end

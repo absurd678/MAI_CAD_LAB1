@@ -25,13 +25,11 @@ logic signed [WORD_LEN-1:0] register_file [0:MEM_ADDR_END];	// ОЗУ
 // Регистры
 logic signed [31:0] op1;
 logic signed [31:0] op2;
-logic signed [31:0] res;
 logic allow_operation = 0;
 // Флаги свежей записи операндов и кода операции
 logic op1_valid = 1'b0;
 logic op2_valid = 1'b0;
 logic oper_valid = 1'b0;
-logic signed [31:0] max_signed = 32'sh7FFFFFFF; // Максимальное число для проверки ввода
 
 // -------------- ФУНКЦИИ -------------- 
 // Проверки переполнения для 32-битных знаковых операций
@@ -47,22 +45,14 @@ endfunction
 
 function logic check_operands_and_operation();
 
-    if(register_file[ADDR_OP1] > max_signed) begin //  Проверить что числа вмещаются в регистр
-        $display("OP1 is too big!");
-        return 0; 
-    end
-    else if (register_file[ADDR_OP2] > max_signed) begin
-        $display("OP2 is too big!");
-        return 0; 
-    end
-    else if (register_file[ADDR_OPER] != 1'b0 && register_file[ADDR_OPER] != 1'b1) begin
+    if (register_file[ADDR_OPER] != 1'b0 && register_file[ADDR_OPER] != 1'b1) begin
         $display("INCORRECT OPER CODE - {0, 1} MUST BE!");
         return 0; 
     end
     else begin
         return 1;
     end
-    return 0;
+    
 endfunction
 
 function automatic logic signed [31:0] do_add(input logic signed [31:0] a, b);
@@ -97,7 +87,25 @@ always @(posedge apb_if.PCLK or negedge apb_if.PRESETn) begin
 
     end
         
-    apb_if.PSLVERR <= 1'b0; 
+    apb_if.PSLVERR <= 1'b0;
+    // --------------------------------------------
+    // Проверка валидности адреса
+    // --------------------------------------------
+    if (apb_if.PSEL && apb_if.PENABLE) begin
+        if (apb_if.PADDR[7:0] > 8'h04) begin
+            // Некорректный адрес -> ошибка
+            apb_if.PREADY  <= 1'b1;
+            apb_if.PSLVERR <= 1'b1;
+            apb_if.PRDATA  <= 32'hDEAD_BEEF;  // можно вернуть любое значение
+            $display("[SLAVE][ERROR] Invalid address %h", apb_if.PADDR);
+
+            // НИЧЕГО НЕ ЗАПИСЫВАЕМ / НЕ ЧИТАЕМ
+        end
+        else begin
+            // Адрес корректный — сбрасываем ошибку
+            apb_if.PSLVERR <= 1'b0;
+        end
+    end 
 
     if (apb_if.PSEL && apb_if.PENABLE && apb_if.PWRITE) begin
         apb_if.PREADY <= 1'b1;
@@ -133,25 +141,27 @@ always @(posedge apb_if.PCLK or negedge apb_if.PRESETn) begin
         end
     end 
 
-    if (allow_operation == 1'b1 && register_file[ADDR_OPER] == 0) begin
-        register_file[ADDR_CY] <= 1'b0;
-        register_file[ADDR_RES] <= do_add(op1, op2);
-        //register_file[ADDR_RES] <= op1 + op2;
-        allow_operation <= 1'b0;
-        // ожидать новые операнды и код операции
-        op1_valid <= 1'b0;
-        op2_valid <= 1'b0;
-        oper_valid <= 1'b0;
-    end
-    else if (allow_operation == 1'b1 && register_file[ADDR_OPER] == 1) begin 
-        register_file[ADDR_CY] <= 1'b0;
-        register_file[ADDR_RES] <= do_sub(op1, op2);
-        //register_file[ADDR_RES] <= op1 - op2;
-        allow_operation <= 1'b0;
-        // ожидать новые операнды и код операции
-        op1_valid <= 1'b0;
-        op2_valid <= 1'b0;
-        oper_valid <= 1'b0;
+    if (allow_operation == 1'b1) begin
+        if (register_file[ADDR_OPER] == 0) begin
+            register_file[ADDR_CY] <= 1'b0;
+            register_file[ADDR_RES] <= do_add(op1, op2);
+            //register_file[ADDR_RES] <= op1 + op2;
+            allow_operation <= 1'b0;
+            // ожидать новые операнды и код операции
+            op1_valid <= 1'b0;
+            op2_valid <= 1'b0;
+            oper_valid <= 1'b0;
+        end
+        else begin 
+            register_file[ADDR_CY] <= 1'b0;
+            register_file[ADDR_RES] <= do_sub(op1, op2);
+            //register_file[ADDR_RES] <= op1 - op2;
+            allow_operation <= 1'b0;
+            // ожидать новые операнды и код операции
+            op1_valid <= 1'b0;
+            op2_valid <= 1'b0;
+            oper_valid <= 1'b0;
+        end
     end
 end
 
